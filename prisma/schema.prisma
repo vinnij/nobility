@@ -1,0 +1,530 @@
+generator client {
+    provider        = "prisma-client-js"
+    previewFeatures = ["omitApi"]
+}
+
+datasource db {
+    provider = "mysql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    id               String          @id @default(cuid())
+    name             String?
+    email            String?         @unique
+    emailVerified    DateTime?
+    storeId          String?
+    image            String?
+    createdAt        DateTime        @default(now())
+    updatedAt        DateTime        @updatedAt
+    joinedSteamGroup Boolean         @default(false)
+    roles            UserRole[]
+    boostedGuilds    discord_guild[]
+    accounts         Account[]
+    sessions         Session[]
+    tickets          Ticket[]
+    UserVote         UserVote[]
+    AdminLog         AdminLog[]
+    ticketMessages   TicketMessage[]
+    player           players?
+}
+
+model Role {
+    id                   String           @id @default(cuid())
+    name                 String           @unique
+    discordRoleId        String?
+    discordGuildId       String?
+    serverId             String?
+    oxideGroupName       String?
+    assignOnVerification Boolean          @default(false)
+    assignOnBoost        Boolean          @default(false)
+    assignOnGroupJoin    Boolean          @default(false)
+    color                String?
+    users                UserRole[]
+    permissions          RolePermission[]
+    createdAt            DateTime         @default(now())
+
+    @@index([discordRoleId])
+    @@index([serverId])
+    @@index([oxideGroupName])
+    @@index([name])
+}
+
+model UserRole {
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    String
+    role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+    roleId    String
+    createdAt DateTime @default(now())
+
+    @@id([userId, roleId])
+    @@index([userId])
+    @@index([roleId])
+}
+
+model Permission {
+    id          String   @id @unique
+    title       String?
+    description String?
+    resource    String // What resource this permission applies to (e.g., 'users', 'posts')
+    action      String // What action is allowed (e.g., 'create', 'read', 'update', 'delete')
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relation to roles (many-to-many)
+    roles RolePermission[]
+}
+
+model RolePermission {
+    role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+    roleId       String
+    permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+    permissionId String
+    createdAt    DateTime   @default(now())
+
+    @@id([roleId, permissionId])
+    @@index([roleId])
+    @@index([permissionId])
+}
+
+model Account {
+    id                       String   @id @default(cuid())
+    userId                   String
+    type                     String
+    provider                 String
+    providerAccountId        String
+    refresh_token            String?  @db.Text
+    access_token             String?  @db.Text
+    expires_at               Int?
+    token_type               String?
+    scope                    String?
+    id_token                 String?  @db.Text
+    session_state            String?
+    refresh_token_expires_in Int?
+    createdAt                DateTime @default(now())
+    updatedAt                DateTime @updatedAt
+    user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([provider, providerAccountId])
+    @@index([userId])
+}
+
+model Session {
+    id           String   @id @default(cuid())
+    sessionToken String   @unique
+    userId       String
+    expires      DateTime
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+    user         User     @relation(fields: [userId], references: [id])
+
+    @@index([userId])
+}
+
+model SiteSettings {
+    id                Int     @id @default(1)
+    name              String  @default("Noble Rust Template")
+    storeId           String?
+    ownerId           String?
+    discordInvite     String? @default("https://discord.gg/ArWvQaYFfx")
+    steamGroupId      String? @default("45164041")
+    steamGroupUrl     String? @default("https://steamcommunity.com/groups/nobledev")
+    rustalyzerEnabled Boolean @default(false)
+    copyServerAddress Boolean @default(false)
+}
+
+model discord_guild {
+    id    String @id
+    name  String
+    users User[]
+}
+
+model DiscordIntegration {
+    id                      Int     @id @default(1)
+    guildId                 String  @default("742378389788426330")
+    webhookUrl              String? @default("https://discord.com/api/webhooks/xx/xx")
+    verificationHookColor   String? @default("#2105893")
+    verificationHookEnabled Boolean @default(true)
+    ticketHookUrl           String?
+    ticketHookColor         String? @default("#2105893")
+    ticketHookEnabled       Boolean @default(true)
+    winningMapHookUrl       String?
+    winningMapHookColor     String? @default("#2105893")
+    winningMapHookEnabled   Boolean @default(true)
+}
+
+model PageMetadata {
+    id                 Int     @id @default(autoincrement())
+    slug               String  @unique
+    title              String?
+    description        String?
+    keywords           String? @db.Text
+    ogTitle            String?
+    ogDescription      String?
+    ogImageUrl         String?
+    ogImageAlt         String?
+    twitterTitle       String?
+    twitterDescription String?
+    twitterImageUrl    String?
+}
+
+model SiteMetadata {
+    id                 Int     @id @default(1)
+    siteName           String?
+    siteTitle          String?
+    siteDescription    String?
+    siteUrl            String?
+    siteImageUrl       String?
+    siteImageAlt       String?
+    keywords           String? @db.Text
+    ogTitle            String?
+    ogDescription      String?
+    ogImageUrl         String?
+    ogImageAlt         String?
+    twitterTitle       String?
+    twitterDescription String?
+    twitterImageUrl    String?
+}
+
+model servers {
+    server_id      String          @id @unique @db.VarChar(255)
+    server_name    String
+    enabled        Boolean         @default(true)
+    order          Int
+    categoryId     Int
+    createdAt      DateTime        @default(now())
+    updatedAt      DateTime        @updatedAt
+    image_path     String?
+    server_address String?
+    category       server_category @relation(fields: [categoryId], references: [id])
+    mapVotes       MapVote[]
+
+    @@index([server_name])
+    @@index([categoryId])
+    @@index([order])
+}
+
+model server_category {
+    id        Int       @id @default(autoincrement())
+    name      String    @unique
+    order     Int
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    servers   servers[]
+
+    @@index([order])
+}
+
+model players {
+    steam_id         String             @id @unique @db.VarChar(255)
+    username         String             @db.VarChar(255)
+    avatar           String?            @db.VarChar(255)
+    lastSeen         DateTime           @default(now())
+    lastSeenServerId String?
+    userId           String?            @unique
+    user             User?              @relation(fields: [userId], references: [id])
+    events_stats     events_stats[]
+    explosives_stats explosives_stats[]
+    farming_stats    farming_stats[]
+    misc_stats       misc_stats[]
+    pvp_stats        pvp_stats[]
+    resources_stats  resources_stats[]
+}
+
+model pvp_stats {
+    steam_id      String   @db.VarChar(255)
+    server_id     String
+    kills         BigInt   @default(0)
+    deaths        BigInt   @default(0)
+    headshots     BigInt   @default(0)
+    suicides      BigInt   @default(0)
+    bullets_fired BigInt   @default(0)
+    created_at    DateTime @default(now())
+    player        players  @relation(fields: [steam_id], references: [steam_id], onDelete: Cascade)
+
+    @@id([steam_id, server_id])
+    @@index([steam_id])
+    @@index([server_id])
+    @@index([created_at])
+}
+
+model resources_stats {
+    steam_id           String   @db.VarChar(255)
+    server_id          String
+    created_at         DateTime @default(now())
+    hqm_farmed         BigInt   @default(0)
+    metal_frags_farmed BigInt   @default(0)
+    stone_farmed       BigInt   @default(0)
+    sulfur_farmed      BigInt   @default(0)
+    wood_farmed        BigInt   @default(0)
+    player             players  @relation(fields: [steam_id], references: [steam_id], onDelete: Cascade)
+
+    @@id([steam_id, server_id])
+    @@index([steam_id])
+    @@index([server_id])
+    @@index([created_at])
+}
+
+model explosives_stats {
+    steam_id                 String   @db.VarChar(255)
+    server_id                String
+    satches_thrown           BigInt   @default(0)
+    created_at               DateTime @default(now())
+    c4_thrown                BigInt   @default(0)
+    he_grenades_fired        BigInt   @default(0)
+    hv_rockets_fired         BigInt   @default(0)
+    incendiary_rockets_fired BigInt   @default(0)
+    rockets_fired            BigInt   @default(0)
+    smoke_rockets_fired      BigInt   @default(0)
+    player                   players  @relation(fields: [steam_id], references: [steam_id], onDelete: Cascade)
+
+    @@id([steam_id, server_id])
+    @@index([steam_id])
+    @@index([server_id])
+    @@index([created_at])
+}
+
+model farming_stats {
+    steam_id            String   @db.VarChar(255)
+    server_id           String
+    leather_harvested   BigInt   @default(0)
+    created_at          DateTime @default(now())
+    berries_harvested   BigInt   @default(0)
+    cloth_collected     BigInt   @default(0)
+    corn_harvested      BigInt   @default(0)
+    fish_gutted         BigInt   @default(0)
+    mushrooms_harvested BigInt   @default(0)
+    potatoes_harvested  BigInt   @default(0)
+    pumpkins_harvested  BigInt   @default(0)
+    player              players  @relation(fields: [steam_id], references: [steam_id], onDelete: Cascade)
+
+    @@id([steam_id, server_id])
+    @@index([steam_id])
+    @@index([server_id])
+    @@index([created_at])
+}
+
+model misc_stats {
+    steam_id              String   @db.VarChar(255)
+    server_id             String
+    time_played           BigInt   @default(0)
+    created_at            DateTime @default(now())
+    animal_kills          BigInt   @default(0)
+    boats_purchased       BigInt   @default(0)
+    helis_purchased       BigInt   @default(0)
+    subs_purchased        BigInt   @default(0)
+    supply_signals_called BigInt   @default(0)
+    player                players  @relation(fields: [steam_id], references: [steam_id], onDelete: Cascade)
+
+    @@id([steam_id, server_id])
+    @@index([steam_id])
+    @@index([server_id])
+    @@index([created_at])
+}
+
+model events_stats {
+    steam_id             String   @db.VarChar(255)
+    server_id            String
+    hacked_crates_looted BigInt   @default(0)
+    heli_kills           BigInt   @default(0)
+    bradley_kills        BigInt   @default(0)
+    missions_started     BigInt   @default(0)
+    missions_completed   BigInt   @default(0)
+    npc_kills            BigInt   @default(0)
+    created_at           DateTime @default(now())
+    player               players  @relation(fields: [steam_id], references: [steam_id], onDelete: Cascade)
+
+    @@id([steam_id, server_id])
+    @@index([steam_id])
+    @@index([server_id])
+    @@index([created_at])
+}
+
+model LeaderboardTab {
+    id        Int                 @id @default(autoincrement())
+    tabKey    String              @unique
+    tabLabel  String
+    order     Int
+    createdAt DateTime            @default(now())
+    updatedAt DateTime            @updatedAt
+    columns   LeaderboardColumn[]
+
+    @@map("leaderboard_tabs")
+}
+
+model LeaderboardColumn {
+    id          Int            @id @default(autoincrement())
+    columnKey   String
+    columnLabel String
+    order       Int
+    tabId       Int
+    icon        String?
+    createdAt   DateTime       @default(now())
+    updatedAt   DateTime       @updatedAt
+    tab         LeaderboardTab @relation(fields: [tabId], references: [id], onDelete: Cascade)
+
+    @@unique([tabId, columnKey])
+    @@map("leaderboard_columns")
+}
+
+model NavigationItem {
+    id    String @id @default(cuid())
+    label String
+    url   String
+    order Int
+
+    @@unique([label, url])
+}
+
+model MapVote {
+    id          String          @id @default(cuid())
+    enabled     Boolean         @default(true)
+    server_id   String
+    votes       UserVote[]
+    map_options MapVoteOption[]
+    server      servers         @relation(fields: [server_id], references: [server_id])
+    vote_start  DateTime
+    vote_end    DateTime
+    map_start   DateTime
+    created_at  DateTime        @default(now())
+    updated_at  DateTime        @updatedAt
+
+    @@map("map_votes")
+}
+
+model MapVoteOption {
+    id           String     @id
+    order        Int?
+    size         Int?
+    seed         Int?
+    isStaging    Boolean?   @default(false)
+    url          String
+    rawImageUrl  String
+    imageUrl     String
+    imageIconUrl String
+    thumbnailUrl String
+    MapVote      MapVote    @relation(fields: [mapVoteId], references: [id], onDelete: Cascade)
+    mapVoteId    String
+    userVotes    UserVote[]
+
+    @@map("map_vote_options")
+}
+
+model UserVote {
+    user_id        String
+    vote_option_id String
+    vote_id        String
+    vote           MapVote       @relation(fields: [vote_id], references: [id], onDelete: Cascade)
+    vote_option    MapVoteOption @relation(fields: [vote_option_id], references: [id], onDelete: Cascade)
+    user           User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+    @@id([user_id, vote_id, vote_option_id])
+    @@index([user_id])
+    @@index([vote_id])
+    @@index([vote_option_id])
+    @@map("user_votes")
+}
+
+model AdminLog {
+    id        String   @id @default(cuid())
+    userId    String?
+    action    String
+    details   Json     @db.Json
+    timestamp DateTime @default(now())
+    user      User?    @relation(fields: [userId], references: [id])
+
+    @@index([action])
+    @@index([userId])
+    @@index([timestamp])
+}
+
+model TicketCategory {
+    slug        String       @id
+    name        String
+    description String?
+    icon        String?
+    order       Int?
+    steps       TicketStep[]
+    tickets     Ticket[]
+
+    @@index([order])
+    @@index([slug])
+}
+
+model TicketStep {
+    id         Int            @id @default(autoincrement())
+    name       String
+    order      Int
+    categoryId String
+    category   TicketCategory @relation(fields: [categoryId], references: [slug])
+    fields     TicketField[]
+}
+
+model TicketField {
+    id       Int        @id @default(autoincrement())
+    label    String
+    key      String
+    type     String
+    required Boolean    @default(false)
+    order    Int
+    stepId   Int
+    step     TicketStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+    options  Json?      @db.Json
+}
+
+model Ticket {
+    id         Int             @id @default(autoincrement())
+    categoryId String
+    category   TicketCategory  @relation(fields: [categoryId], references: [slug])
+    user       User            @relation(fields: [userId], references: [id])
+    status     String          @default("open")
+    userId     String
+    content    Json            @db.Json
+    messages   TicketMessage[]
+    createdAt  DateTime        @default(now())
+    updatedAt  DateTime        @updatedAt
+
+    @@index([categoryId])
+    @@index([userId])
+    @@index([createdAt])
+    @@index([updatedAt])
+}
+
+model TicketMessage {
+    id          Int      @id @default(autoincrement())
+    content     String   @db.Text
+    attachments String   @default("[]")
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @default(now()) @updatedAt
+    ticketId    Int
+    userId      String
+    ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+    user        User     @relation(fields: [userId], references: [id])
+
+    @@index([ticketId])
+    @@index([userId])
+}
+
+model StoreSale {
+    id          Int     @id @default(1)
+    enabled     Boolean @default(false)
+    title       String?
+    description String?
+    url         String?
+}
+
+model StoreSettings {
+    id                      Int     @id @default(1)
+    featuredProductEnabled  Boolean @default(false)
+    featuredProductId       String?
+    requireLinkedToPurchase Boolean @default(false)
+}
+
+model Redirect {
+    id          Int      @id @default(autoincrement())
+    source      String   @unique
+    destination String
+    permanent   Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+}
