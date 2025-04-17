@@ -72,34 +72,33 @@ export const authOptions = (req?: NextRequest): NextAuthOptions => {
                     const steamAccount = prismaUser?.accounts.find((a: any) => a.provider == "steam");
                     if (!!steamAccount) {
                         session.user.steamId = steamAccount?.providerAccountId;
-                        if (prismaUser?.storeId) {
-                            session.user.storeId = prismaUser.storeId;
-                        } else if (!session.user.storeId) {
-                            const settings = await prisma.siteSettings.findFirst({
-                                select: {
-                                    storeId: true
-                                }
-                            });
-                            // If the storeId is set, we can use it to find or create the customer
-                            if (settings?.storeId) {
-                                let { data } = await findCustomer(steamAccount.providerAccountId);
-                                if (!data || data.status === 404) {
-                                    data = await createCustomer(steamAccount.providerAccountId);
-                                }
-                                if (data && data.status !== 400) {
-                                    await prisma.user.update({
-                                        where: {
-                                            id: prismaUser?.id
-                                        },
-                                        data: {
-                                            storeId: data.id || null
-                                        }
-                                    })
-                                    session.user.storeId = data.id
-                                }
+                        
+                        // Always check and update storeId if needed
+                        const settings = await prisma.siteSettings.findFirst({
+                            select: {
+                                storeId: true
+                            }
+                        });
+
+                        if (settings?.storeId) {
+                            let { data } = await findCustomer(steamAccount.providerAccountId);
+                            if (!data || data.status === 404) {
+                                data = await createCustomer(steamAccount.providerAccountId);
+                            }
+                            if (data && data.status !== 400) {
+                                await prisma.user.update({
+                                    where: {
+                                        id: prismaUser?.id
+                                    },
+                                    data: {
+                                        storeId: data.id || null
+                                    }
+                                });
+                                session.user.storeId = data.id;
                             }
                         }
                     }
+
                     const discordAccount = prismaUser?.accounts.find((a: any) => a.provider == "discord");
                     if (!!discordAccount) {
                         session.user.discordId = discordAccount?.providerAccountId;
